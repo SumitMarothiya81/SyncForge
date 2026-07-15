@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model User {
+  id            String            @id @default(cuid())
+  email         String            @unique
+  passwordHash  String
+  name          String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  memberships   WorkspaceMember[]
+  documents     Document[]        @relation("DocumentOwner")
+}
+
+model Workspace {
+  id          String            @id @default(cuid())
+  name        String
+  createdAt   DateTime          @default(now())
+
+  members     WorkspaceMember[]
+  documents   Document[]
+}
+
+model WorkspaceMember {
+  id           String        @id @default(cuid())
+  role         WorkspaceRole @default(EDITOR)
+
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId  String
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime      @default(now())
+
+  @@unique([userId, workspaceId])
+}
+
+model Document {
+  id           String     @id @default(cuid())
+  title        String     @default("Untitled document")
+  content      String     @default("") // serialized TipTap/ProseMirror JSON as string; Yjs state lives separately once realtime sync lands
+  isPublic     Boolean    @default(false)
+
+  ownerId      String
+  owner        User       @relation("DocumentOwner", fields: [ownerId], references: [id])
+
+  workspaceId  String
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
