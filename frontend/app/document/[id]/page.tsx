@@ -63,15 +63,15 @@ return (
           {status === "saving" ? "Saving..." : status === "saved" ? "Saved" : ""}
         </span>
       </div>
-
-      <Editor
-        content={content}
-        onChange={(html) => {
-          setContent(html);
-          scheduleSave({ content: html });
-          notifyTyping();
-        }}
-      />
+<Editor
+  documentId={id}
+  userName={userName}
+  initialContent={content}
+  onSnapshot={(html) => {
+    api.updateDocument(id, { content: html });
+  }}
+/>
+    
     </main>
   );
 }

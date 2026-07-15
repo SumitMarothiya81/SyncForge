@@ -2,37 +2,99 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect } from "react";
+import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface EditorProps {
-  content: string;
-  onChange: (html: string) => void;
+  documentId: string;
+  userName: string;
+  initialContent: string;
+  onSnapshot: (html: string) => void;
 }
 
-// Phase 1: local single-user editing, content persisted via PATCH /api/documents/:id
-// Phase 2 will swap the StarterKit history extension for y-prosemirror bound to a
-// Yjs doc, and this component starts receiving a `provider` prop for awareness/cursors.
-export default function Editor({ content, onChange }: EditorProps) {
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content,
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
-    editorProps: {
-      attributes: {
-        class: "prose prose-sm sm:prose-base max-w-none focus:outline-none min-h-[60vh]",
-      },
-    },
-  });
+const CURSOR_COLORS = ["#f87171", "#fb923c", "#facc15", "#4ade80", "#38bdf8", "#a78bfa", "#f472b6"];
+
+// Weeks 6-7: content sync now lives in a Yjs doc, not a controlled React
+// string. StarterKit's own history is disabled because Yjs's CRDT handles
+// undo/redo across collaborators; letting both track history causes conflicts.
+export default function Editor({ documentId, userName, initialContent, onSnapshot }: EditorProps) {
+  const ydoc = useMemo(() => new Y.Doc(), [documentId]);
+  const [provider, setProvider] = useState<WebsocketProvider | null>(null);
+  const [synced, setSynced] = useState(false);
+
+  // Stable per-tab color, generated once, not re-rolled on every render
+  const colorRef = useRef(CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)]);
 
   useEffect(() => {
-    if (editor && content && editor.getHTML() !== content) {
-      editor.commands.setContent(content);
+    const wsUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/^http/, "ws");
+    const p = new WebsocketProvider(`${wsUrl}/yjs`, documentId, ydoc);
+
+    p.on("sync", (isSynced: boolean) => setSynced(isSynced));
+    setProvider(p);
+
+    return () => {
+      p.destroy();
+      ydoc.destroy();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, ydoc]);
+
+  // Runs on mount AND whenever userName updates (e.g. once api.me() resolves),
+  // so the cursor label never gets stuck showing a fallback client ID.
+  useEffect(() => {
+    if (!provider) return;
+    provider.awareness.setLocalStateField("user", {
+      name: userName || "Anonymous",
+      color: colorRef.current,
+    });
+  }, [provider, userName]);
+
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({ history: false }),
+        ...(provider
+          ? [
+              Collaboration.configure({ document: ydoc }),
+              CollaborationCursor.configure({ provider }),
+            ]
+          : []),
+      ],
+      editorProps: {
+        attributes: {
+          class: "prose prose-sm sm:prose-base max-w-none focus:outline-none min-h-[60vh]",
+        },
+      },
+    },
+    [provider]
+  );
+
+  // If this browser is the very first one to ever open this document
+  // (the Yjs doc is still empty), seed it from whatever was last saved
+  // to Postgres, so old content from Phase 1 isn't lost.
+  useEffect(() => {
+    if (!editor || !synced) return;
+    const fragment = ydoc.getXmlFragment("default");
+    if (fragment.length === 0 && initialContent) {
+      editor.commands.setContent(initialContent);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor]);
+  }, [editor, synced]);
+
+  // Periodic durability snapshot to Postgres — independent of the live
+  // Yjs sync between browsers. This is what survives a server restart.
+  useEffect(() => {
+    if (!editor) return;
+    const interval = setInterval(() => onSnapshot(editor.getHTML()), 5000);
+    return () => clearInterval(interval);
+  }, [editor, onSnapshot]);
 
   return (
     <div className="border border-ink/10 rounded-md px-6 py-4 bg-white">
+      {!synced && <p className="text-xs text-ink/40 mb-2">Connecting...</p>}
       <EditorContent editor={editor} />
     </div>
   );

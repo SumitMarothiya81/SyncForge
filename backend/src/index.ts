@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth";
 import workspaceRoutes from "./routes/workspaces";
 import documentRoutes from "./routes/documents";
 import { attachPresenceServer } from "./realtime/presence";
+import { attachYjsServer } from "./realtime/yjs-server";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/documents", documentRoutes);
 
 const server = http.createServer(app);
 attachPresenceServer(server);
+attachYjsServer(server);
 
 const port = process.env.PORT || 4000;
 server.listen(port, () => {
