@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 enum WorkspaceRole {
@@ -63,4 +65,24 @@ model Document {
 
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+    chunks       DocumentChunk[]
+}
+
+
+model DocumentChunk {
+  id         String   @id @default(cuid())
+
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  content    String
+  chunkIndex Int
+
+  // 384 dimensions — matches the local Xenova/all-MiniLM-L6-v2 embedding
+  // model, NOT OpenAI's 1536-dim model, since we're not using OpenAI.
+  embedding  Unsupported("vector(384)")
+
+  createdAt  DateTime @default(now())
+
+  @@index([documentId])
 }

@@ -7,7 +7,7 @@ import workspaceRoutes from "./routes/workspaces";
 import documentRoutes from "./routes/documents";
 import { attachPresenceServer } from "./realtime/presence";
 import { attachYjsServer } from "./realtime/yjs-server";
-
+import aiRoutes from "./routes/ai";
 const app = express();
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:3000" }));
@@ -18,7 +18,7 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/documents", documentRoutes);
-
+app.use("/api/ai", aiRoutes);
 // NOTE: Real-time collaboration (Phase 2) will attach a WebSocket server
 // (y-websocket or a custom provider) alongside this HTTP server, likely
 // via http.createServer(app) + a ws.Server on the same port.

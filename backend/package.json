@@ -19,6 +19,7 @@
      "socket.io": "^4.7.5",
     "zod": "^3.23.8",
     "ws": "^8.18.0",
+    "@xenova/transformers": "^2.17.2",
 "y-websocket": "^2.0.4",
 "yjs": "^13.6.18"
   },

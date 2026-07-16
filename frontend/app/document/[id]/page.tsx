@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import Editor from "@/components/Editor";
 import { usePresence } from "@/lib/usePresence";
+import ChatPanel from "@/components/ChatPanel";
 
 export default function DocumentPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +33,8 @@ export default function DocumentPage() {
       setStatus("saved");
     }, 800);
   }
-return (
+
+  return (
     <main className="max-w-3xl mx-auto px-6 py-10">
       <div className="flex items-center justify-between mb-2 text-xs text-ink/50">
         <div className="flex items-center gap-2">
@@ -63,16 +65,19 @@ return (
           {status === "saving" ? "Saving..." : status === "saved" ? "Saved" : ""}
         </span>
       </div>
-<Editor
-  documentId={id}
-  userName={userName}
-  initialContent={content}
-  onSnapshot={(html) => {
-    api.updateDocument(id, { content: html });
-  }}
-/>
-    
+
+      <Editor
+        documentId={id}
+        userName={userName}
+        initialContent={content}
+        onSnapshot={(html) => {
+          api.updateDocument(id, { content: html });
+        }}
+      />
+
+      <div className="mt-6">
+        <ChatPanel documentId={id} />
+      </div>
     </main>
   );
 }
- 
