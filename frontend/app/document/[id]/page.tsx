@@ -6,7 +6,8 @@ import { api } from "@/lib/api";
 import Editor from "@/components/Editor";
 import { usePresence } from "@/lib/usePresence";
 import ChatPanel from "@/components/ChatPanel";
-
+import ActionItems from "@/components/ActionItems";
+import DiagramPanel from "@/components/DiagramPanel";
 export default function DocumentPage() {
   const { id } = useParams<{ id: string }>();
   const [title, setTitle] = useState("");
@@ -75,8 +76,10 @@ export default function DocumentPage() {
         }}
       />
 
-      <div className="mt-6">
+    <div className="mt-6 space-y-6">
         <ChatPanel documentId={id} />
+        <ActionItems documentId={id} />
+        <DiagramPanel documentId={id} />
       </div>
     </main>
   );

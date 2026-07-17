@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth, AuthedRequest } from "../middleware/auth";
 import { chunkText, stripHtml } from "../lib/chunk";
 import { embedText } from "../lib/embeddings";
-import { streamChatCompletion } from "../lib/groq";
+import { streamChatCompletion, getChatCompletion } from "../lib/groq";
 
 const router = Router();
 router.use(requireAuth);
@@ -105,4 +105,73 @@ router.post("/chat/:documentId", async (req: AuthedRequest, res) => {
   }
 });
 
+
+
+// POST /api/ai/action-items/:documentId
+router.post("/action-items/:documentId", async (req: AuthedRequest, res) => {
+  const document = await prisma.document.findUnique({ where: { id: req.params.documentId } });
+  if (!document) return res.status(404).json({ error: "Document not found" });
+
+  const membership = await assertMember(req.userId as string, document.workspaceId);
+  if (!membership) return res.status(403).json({ error: "Not authorized" });
+
+  const plainText = stripHtml(document.content).slice(0, 6000); // keep prompt small & fast
+  if (!plainText) return res.status(400).json({ error: "Document has no content yet" });
+
+  const raw = await getChatCompletion([
+    {
+      role: "system",
+      content:
+        "Extract action items from the document below. Respond with ONLY a JSON array, " +
+        'no markdown fences, no commentary. Format: [{"task": "...", "assignee": "" or a name if mentioned}]. ' +
+        "If there are no clear action items, return an empty array [].",
+    },
+    { role: "user", content: plainText },
+  ]);
+
+  try {
+    // Strip accidental ```json fences before parsing, in case the model adds them anyway
+    const cleaned = raw.replace(/```json|```/g, "").trim();
+    const items = JSON.parse(cleaned);
+    res.json({ items });
+  } catch {
+    res.status(502).json({ error: "AI response wasn't valid JSON — try again" });
+  }
+});
+
+// POST /api/ai/diagram/:documentId
+const diagramSchema = z.object({ instruction: z.string().optional() });
+
+router.post("/diagram/:documentId", async (req: AuthedRequest, res) => {
+  const parsed = diagramSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const document = await prisma.document.findUnique({ where: { id: req.params.documentId } });
+  if (!document) return res.status(404).json({ error: "Document not found" });
+
+  const membership = await assertMember(req.userId as string, document.workspaceId);
+  if (!membership) return res.status(403).json({ error: "Not authorized" });
+
+  const plainText = stripHtml(document.content).slice(0, 6000);
+  if (!plainText) return res.status(400).json({ error: "Document has no content yet" });
+
+  const instruction =
+    parsed.data.instruction || "Summarize the structure or flow of this document as a diagram.";
+
+  const raw = await getChatCompletion([
+    {
+      role: "system",
+      content:
+        "Generate a Mermaid diagram based on the document below. Respond with ONLY the Mermaid " +
+        "syntax (e.g. starting with 'flowchart TD' or 'graph TD'), no markdown fences, no commentary.",
+    },
+    { role: "user", content: `Instruction: ${instruction}\n\nDocument:\n${plainText}` },
+  ]);
+
+  const mermaid = raw.replace(/```mermaid|```/g, "").trim();
+  res.json({ mermaid });
+});
+
 export default router;
+
+

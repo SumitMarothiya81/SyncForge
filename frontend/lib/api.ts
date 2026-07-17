@@ -70,8 +70,18 @@ export const api = {
       onToken(decoder.decode(value, { stream: true }));
     }
   },
-};
 
+getActionItems: (documentId: string) =>
+    request(`/api/ai/action-items/${documentId}`, { method: "POST" }),
+
+  generateDiagram: (documentId: string, instruction?: string) =>
+    request(`/api/ai/diagram/${documentId}`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
+
+};
+ 
 export function saveToken(token: string) {
   localStorage.setItem("token", token);
 }

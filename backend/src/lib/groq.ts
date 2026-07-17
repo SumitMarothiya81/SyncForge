@@ -50,3 +50,29 @@ export async function streamChatCompletion(
     }
   }
 }
+
+
+
+// Non-streaming variant — used where we need the full response at once
+// (structured JSON, Mermaid syntax) rather than token-by-token display.
+export async function getChatCompletion(
+  messages: { role: "system" | "user" | "assistant"; content: string }[]
+): Promise<string> {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ model: CHAT_MODEL, messages, stream: false }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Groq request failed: ${res.status} ${await res.text()}`);
+  }
+
+const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+  };
+  return data.choices?.[0]?.message?.content ?? "";
+}
