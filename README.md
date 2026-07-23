@@ -1,5 +1,7 @@
 # SyncForge — AI-Powered Collaborative Workspace
 
+![CI](https://github.com/SumitMarothiya81/SyncForge/actions/workflows/ci.yml/badge.svg)
+
 A real-time collaborative document editor with AI built in — not a Google Docs clone, but a workspace where documents, live collaboration, and AI assistance are one connected system.
 
 ## What this is
