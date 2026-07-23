@@ -1,73 +1,35 @@
-# AI Workspace — Phase 1 Scaffold
+# SyncForge — AI-Powered Collaborative Workspace
 
-Real-time collaborative document platform with AI features, built incrementally.
-This scaffold covers **Phase 1**: auth, workspaces, document CRUD, and a working
-rich-text editor. Real-time sync (Yjs), RAG chat, and other AI features are
-deliberately not wired up yet — see the roadmap below.
+A real-time collaborative document editor with AI built in — not a Google Docs clone, but a workspace where documents, live collaboration, and AI assistance are one connected system.
 
-## Structure
+## What this is
 
-```
-ai-workspace/
-├── backend/          Express + TypeScript + Prisma API
-│   ├── prisma/schema.prisma
-│   └── src/
-│       ├── routes/    auth.ts, workspaces.ts, documents.ts
-│       ├── middleware/auth.ts   JWT verification
-│       └── lib/prisma.ts
-├── frontend/          Next.js (App Router) + TypeScript + Tailwind
-│   └── app/
-│       ├── page.tsx           login
-│       ├── signup/page.tsx
-│       ├── dashboard/page.tsx workspace + document list
-│       └── document/[id]/page.tsx   TipTap editor + autosave
-└── docker-compose.yml Postgres + Redis for local dev
-```
+SyncForge lets teams write documents together in real time, with live cursors and no merge conflicts (thanks to CRDT-based sync via Yjs), and layers AI directly on top: chat with your document, extract action items, generate diagrams from content, and roll back to earlier versions — all running on a completely free stack (Groq's Llama 3.3 70B + a locally-run embedding model, no paid API keys required).
 
-## Getting started
+## Features
 
-1. Start Postgres + Redis:
-   ```
-   docker compose up -d
-   ```
+**Core**
 
-2. Backend:
-   ```
-   cd backend
-   cp .env.example .env      # edit JWT_SECRET
-   npm install
-   npm run prisma:migrate    # creates tables
-   npm run dev               # http://localhost:4000
-   ```
+- JWT authentication, workspaces, and role-based permissions (Owner / Editor / Viewer)
+- Real-time collaborative editing (Yjs CRDT + TipTap), with live named cursors per user
+- Presence indicators (who's online, who's typing)
+- Version history with save/restore, live-applied through the active collaborative session
+- Debounced autosave
 
-3. Frontend:
-   ```
-   cd frontend
-   cp .env.local.example .env.local
-   npm install
-   npm run dev                # http://localhost:3000
-   ```
+**AI (Groq + local embeddings — zero-cost inference)**
 
-4. Visit `http://localhost:3000`, sign up, and you'll land in a personal
-   workspace created automatically at signup. Create a document and start typing —
-   it autosaves 800ms after you stop.
+- Chat with your document (RAG: chunking → local embeddings via Xenova/all-MiniLM-L6-v2 → pgvector similarity search → Groq-generated, grounded answers)
+- Action-item extraction (structured JSON → interactive checklist)
+- AI-generated Mermaid diagrams from document content
 
-## What's intentionally NOT here yet
+## Tech stack
 
-- **Real-time collaboration.** The `Document.content` field is a plain string
-  updated via PATCH. Phase 2 introduces Yjs + y-prosemirror + a WebSocket
-  provider, replacing this with CRDT-based sync and live cursors.
-- **AI features** (RAG chat, summarization, action items, Mermaid diagrams).
-  These are Phase 3 and will hang off new routes (e.g. `/api/ai/chat`) backed
-  by pgvector for retrieval.
-- **Version history, comments, notifications.** Phase 4 polish.
+| Layer     | Tech                                                                     |
+| --------- | ------------------------------------------------------------------------ |
+| Frontend  | Next.js (App Router), TypeScript, Tailwind CSS, TipTap                   |
+| Backend   | Node.js, Express, Prisma, PostgreSQL + pgvector                          |
+| Real-time | Yjs, y-websocket, Socket.IO (presence)                                   |
+| AI        | Groq API (Llama 3.3 70B), local Xenova embeddings (ONNX, runs on-device) |
+| Infra     | Docker Compose (Postgres + Redis), GitHub Actions CI                     |
 
-## Design notes for interviews
-
-- Roles are enforced server-side per workspace (`OWNER` / `EDITOR` / `VIEWER`)
-  rather than trusted from the client — see `assertMember` in `documents.ts`.
-- Every new user gets a personal workspace at signup so the "workspace" concept
-  doesn't require a separate onboarding flow to demo.
-- The editor component is deliberately isolated (`components/Editor.tsx`) so
-  swapping its persistence model (plain HTML → Yjs doc) in Phase 2 doesn't
-  require touching the page-level autosave logic.
+## Architecture
