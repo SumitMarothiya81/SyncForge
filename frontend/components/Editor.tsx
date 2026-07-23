@@ -27,7 +27,8 @@ const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   { documentId, userName, initialContent, onSnapshot },
   ref
 ) {
-  const ydoc = useMemo(() => new Y.Doc(), [documentId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+const ydoc = useMemo(() => new Y.Doc(), [documentId]);
   const [provider, setProvider] = useState<WebsocketProvider | null>(null);
   const [synced, setSynced] = useState(false);
 
