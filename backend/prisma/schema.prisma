@@ -65,9 +65,10 @@ model Document {
 
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-    chunks       DocumentChunk[]
-}
 
+  chunks       DocumentChunk[]
+  versions     DocumentVersion[]
+}
 
 model DocumentChunk {
   id         String   @id @default(cuid())
@@ -83,6 +84,21 @@ model DocumentChunk {
   embedding  Unsupported("vector(384)")
 
   createdAt  DateTime @default(now())
+
+  @@index([documentId])
+}
+
+model DocumentVersion {
+  id         String   @id @default(cuid())
+
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  title      String
+  content    String
+
+  createdById String
+  createdAt   DateTime @default(now())
 
   @@index([documentId])
 }

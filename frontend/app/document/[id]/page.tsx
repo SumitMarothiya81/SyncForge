@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
-import Editor from "@/components/Editor";
+import Editor, { EditorHandle } from "@/components/Editor";
 import { usePresence } from "@/lib/usePresence";
 import ChatPanel from "@/components/ChatPanel";
 import ActionItems from "@/components/ActionItems";
 import DiagramPanel from "@/components/DiagramPanel";
+import VersionHistory from "@/components/VersionHistory";
+
 export default function DocumentPage() {
   const { id } = useParams<{ id: string }>();
   const [title, setTitle] = useState("");
@@ -15,6 +17,7 @@ export default function DocumentPage() {
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [userName, setUserName] = useState("");
   const saveTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const editorRef = useRef<EditorHandle>(null);
 
   const { onlineUsers, typingUserIds, notifyTyping } = usePresence(id, userName);
 
@@ -68,6 +71,7 @@ export default function DocumentPage() {
       </div>
 
       <Editor
+        ref={editorRef}
         documentId={id}
         userName={userName}
         initialContent={content}
@@ -76,10 +80,24 @@ export default function DocumentPage() {
         }}
       />
 
-    <div className="mt-6 space-y-6">
+      <div className="mt-6 space-y-6">
         <ChatPanel documentId={id} />
         <ActionItems documentId={id} />
         <DiagramPanel documentId={id} />
+        <VersionHistory
+          documentId={id}
+          onBeforeSave={async () => {
+            const html = editorRef.current?.getHTML() ?? "";
+            await api.updateDocument(id, { content: html });
+          }}
+          onRestored={() => {
+            api.getDocument(id).then(({ document }) => {
+              setTitle(document.title);
+              setContent(document.content);
+              editorRef.current?.setHTML(document.content);
+            });
+          }}
+        />
       </div>
     </main>
   );

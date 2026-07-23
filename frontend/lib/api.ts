@@ -80,6 +80,11 @@ getActionItems: (documentId: string) =>
       body: JSON.stringify({ instruction }),
     }),
 
+    listVersions: (documentId: string) => request(`/api/versions/${documentId}`),
+  saveVersion: (documentId: string) => request(`/api/versions/${documentId}`, { method: "POST" }),
+  restoreVersion: (documentId: string, versionId: string) =>
+    request(`/api/versions/${documentId}/${versionId}/restore`, { method: "POST" }),
+
 };
  
 export function saveToken(token: string) {
